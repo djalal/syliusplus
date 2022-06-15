@@ -2,25 +2,6 @@
 
 set -e
 
-# source: https://gist.github.com/karlrwjohnson/1921b05c290edb665c238676ef847f3c
-function lock_cmd {
-    LOCK_FILE="$1"; shift
-    LOCK_TIMEOUT="$1"; shift;
-
-    (
-        trap "rm -f $LOCK_FILE" 0
-        flock -x -w $LOCK_TIMEOUT 200
-        RETVAL=$?
-        if [ $RETVAL -ne 0 ]; then
-            echo -e "Failed to aquire lock on $LOCK_FILE within $LOCK_TIMEOUT seconds. Is a similar script hung?"
-            exit $RETVAL
-        fi
-        echo -e "Running command: $@"
-        $@
-    ) 200>"$LOCK_FILE"
-}
-
-
 echo ">>>>>>>>>>>>>> START CUSTOM ENTRYPOINT SCRIPT <<<<<<<<<<<<<<<<< "
 
 # make sure folders are writable
@@ -57,9 +38,8 @@ wait-for $APP_DATABASE_HOST:$APP_DATABASE_PORT --timeout=180
 
 su www-data -s /bin/bash -c 'php ./bin/console doctrine:migrations:status'
 
-lock_file=/data/artifakt-install-lock
-lock_timeout=600
-
-lock_cmd $lock_file $lock_timeout /.artifakt/install.sh
+if [ $ARTIFAKT_IS_MAIN_INSTANCE == 1 ]; then
+    source /.artifakt/install.sh
+fi
 
 echo ">>>>>>>>>>>>>> END CUSTOM ENTRYPOINT SCRIPT <<<<<<<<<<<<<<<<< "
